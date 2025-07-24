@@ -4,44 +4,91 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QR Dinámico</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
 </head>
 <body>
-  <h1>Redireccionando...</h1>
-  <script type="module">
-    import { db, ref, push } from './firebase.js';
+  <h1>Generar QR Dinámico</h1>
+  <input type="text" id="inputText" placeholder="Texto o enlace para el QR">
+  <button onclick="generarQR()">Generar QR</button>
+  <div id="qrcode"></div>
+  <hr>
+  <h2>Visitas registradas</h2>
+  <ul id="visitas"></ul>
 
-    // 🔍 ID del QR en la URL
-    const params = new URLSearchParams(window.location.search);
-    const qrId = params.get('id'); // ej: ?id=abc123
-    if (!qrId) {
-      document.body.innerHTML = "<h2>ID de QR no válido</h2>";
-      throw new Error("ID de QR no encontrado");
+  <script>
+    // Inicializar Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrUPX8LcO-sH-8pvG7qnhACbbAuZo-MF8",
+      authDomain: "qrdinamicobbdd.firebaseapp.com",
+      projectId: "qrdinamicobbdd",
+      storageBucket: "qrdinamicobbdd.appspot.com",
+      messagingSenderId: "1032568749438",
+      appId: "1:1032568749438:web:2a894c25e252bad128872f",
+      databaseURL: "https://qrdinamicobbdd-default-rtdb.firebaseio.com/"
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    async function obtenerDatosVisita() {
+      const res = await fetch("https://ipapi.co/json/");
+      const data = await res.json();
+      return {
+        ip: data.ip,
+        ciudad: data.city,
+        region: data.region,
+        pais: data.country_name,
+        zona_horaria: data.timezone,
+        org: data.org,
+        fecha: new Date().toLocaleString()
+      };
     }
 
-    // 🕒 timestamp y navegador
-    const visitData = {
-      timestamp: Date.now(),
-      userAgent: navigator.userAgent,
-    };
+    async function generarQR() {
+      const texto = document.getElementById("inputText").value;
+      if (!texto) return alert("Escribe algo para generar el QR");
 
-    // 🌍 Obtener IP pública
-    fetch("https://api.ipify.org/?format=json")
-      .then(res => res.json())
-      .then(data => {
-        visitData.ip = data.ip;
+      const qrID = "qr_" + Date.now();
+      const qrData = {
+        destino: texto,
+        creado: new Date().toISOString()
+      };
 
-        // 💾 Guardar visita
-        const visitRef = ref(db, `qrLinks/${qrId}/visits`);
-        push(visitRef, visitData);
+      // Guardar info del QR en la base de datos
+      await firebase.database().ref("qrs/" + qrID).set(qrData);
 
-        // 🔄 Obtener destino
-        fetch(`https://qrdinamicobbdd-default-rtdb.firebaseio.com/qrLinks/${qrId}/url.json`)
-          .then(res => res.json())
-          .then(url => {
-            if (url) window.location.href = url;
-            else document.body.innerHTML = "<h2>Destino no encontrado</h2>";
-          });
+      // Mostrar el QR generado
+      document.getElementById("qrcode").innerHTML = "";
+      QRCode.toCanvas(texto, { width: 256 }, function (err, canvas) {
+        if (err) console.error(err);
+        else document.getElementById("qrcode").appendChild(canvas);
       });
+
+      // Simular que alguien escanea el QR
+      const datosVisita = await obtenerDatosVisita();
+      await firebase.database().ref(`qrs/${qrID}/visitas`).push(datosVisita);
+
+      mostrarVisitas(qrID);
+    }
+
+    async function mostrarVisitas(qrID) {
+      const visitasRef = firebase.database().ref(`qrs/${qrID}/visitas`);
+      visitasRef.on("value", (snapshot) => {
+        const data = snapshot.val();
+        const lista = document.getElementById("visitas");
+        lista.innerHTML = "";
+        if (!data) {
+          lista.innerHTML = "<li>No hay visitas</li>";
+          return;
+        }
+        Object.values(data).forEach((visita) => {
+          const item = document.createElement("li");
+          item.textContent = `${visita.fecha} - ${visita.ip} (${visita.ciudad}, ${visita.region}, ${visita.pais})`;
+          lista.appendChild(item);
+        });
+      });
+    }
   </script>
 </body>
 </html>
