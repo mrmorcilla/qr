@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Análisis de QRs</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      get,
+      child
+    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDrUPX8LcO-sH-8pvG7qnhACbbAuZo-MF8",
+      authDomain: "qrdinamicobbdd.firebaseapp.com",
+      databaseURL: "https://qrdinamicobbdd-default-rtdb.firebaseio.com",
+      projectId: "qrdinamicobbdd",
+      storageBucket: "qrdinamicobbdd.appspot.com",
+      messagingSenderId: "1032568749438",
+      appId: "1:1032568749438:web:2a894c25e252bad128872f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db);
+
+    async function cargarDatos() {
+      const contenedor = document.getElementById("contenedor");
+      const snapshot = await get(child(dbRef, "qrLinks"));
+
+      if (!snapshot.exists()) {
+        contenedor.innerHTML = "<p>No hay datos para mostrar.</p>";
+        return;
+      }
+
+      const datos = snapshot.val();
+
+      for (const [qrID, info] of Object.entries(datos)) {
+        const visitas = info.visits || [];
+
+        const navegadores = {};
+        const ips = {};
+
+        visitas.forEach(v => {
+          const userAgent = v.userAgent?.split(" ")[0] || "Desconocido";
+          navegadores[userAgent] = (navegadores[userAgent] || 0) + 1;
+          ips[v.ip] = (ips[v.ip] || 0) + 1;
+        });
+
+        const divQR = document.createElement("div");
+        divQR.style.border = "1px solid #ccc";
+        divQR.style.padding = "1rem";
+        divQR.style.margin = "1rem 0";
+        divQR.innerHTML = `
+          <h2>ID: ${qrID}</h2>
+          <p><strong>URL:</strong> <a href="${info.url}" target="_blank">${info.url}</a></p>
+          <p><strong>Total de visitas:</strong> ${visitas.length}</p>
+          <canvas id="chart-nav-${qrID}" height="100"></canvas>
+          <canvas id="chart-ip-${qrID}" height="100"></canvas>
+        `;
+        contenedor.appendChild(divQR);
+
+        // Navegadores
+        new Chart(document.getElementById(`chart-nav-${qrID}`), {
+          type: 'pie',
+          data: {
+            labels: Object.keys(navegadores),
+            datasets: [{
+              data: Object.values(navegadores),
+              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#84FF63', '#A936EB'],
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'Navegadores' } }
+          }
+        });
+
+        // IPs
+        new Chart(document.getElementById(`chart-ip-${qrID}`), {
+          type: 'pie',
+          data: {
+            labels: Object.keys(ips),
+            datasets: [{
+              data: Object.values(ips),
+              backgroundColor: ['#F7464A', '#46BFBD', '#FDB45C', '#949FB1', '#4D5360'],
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { title: { display: true, text: 'IPs visitantes' } }
+          }
+        });
+      }
+    }
+
+    cargarDatos();
+  </script>
+</head>
+<body>
+  <h1>Análisis de QR dinámicos</h1>
+  <div id="contenedor"></div>
+</body>
+</html>
