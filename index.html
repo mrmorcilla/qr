@@ -2,21 +2,23 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Generador de QR Dinámico</title>
+  <title>Generar QR Dinámico</title>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <style>
     body {
       font-family: sans-serif;
-      background: #f4f4f4;
-      text-align: center;
+      background: #f0f0f0;
       padding: 30px;
+      text-align: center;
     }
     input, button {
       padding: 10px;
       font-size: 16px;
       margin: 10px;
+      width: 300px;
+      max-width: 80%;
     }
     #qrcode {
       margin-top: 20px;
@@ -24,14 +26,14 @@
   </style>
 </head>
 <body>
-  <h1>Generar QR Dinámico</h1>
+  <h1>Generador de QR Dinámico</h1>
   <input type="text" id="linkInput" placeholder="Enlace de destino">
-  <button onclick="generarQR()">Crear QR</button>
+  <button id="btnGenerar">Crear QR</button>
   <div id="qrcode"></div>
   <p id="idGenerado"></p>
 
   <script>
-    // Firebase config
+    // ✅ Configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDrUPX8LcO-sH-8pvG7qnhACbbAuZo-MF8",
       authDomain: "qrdinamicobbdd.firebaseapp.com",
@@ -42,32 +44,32 @@
       appId: "1:1032568749438:web:2a894c25e252bad128872f"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
     function generarID() {
-      return Math.random().toString(36).substr(2, 8); // id único de 8 caracteres
+      return Math.random().toString(36).substr(2, 8);
     }
 
-    async function generarQR() {
+    document.getElementById("btnGenerar").addEventListener("click", async () => {
       const enlace = document.getElementById('linkInput').value.trim();
-      if (!enlace) return alert("Poné un enlace válido");
+      if (!enlace) return alert("Ingresá un enlace válido.");
 
       const id = generarID();
-      const urlQR = `${window.location.origin}/redirect.html?id=${id}`;
+      const redireccionURL = `${window.location.origin}/redirect.html?id=${id}`;
 
-      // Guardar en Firebase
-      await firebase.database().ref("qrLinks/" + id).set({
+      // ✅ Guardar en Firebase
+      await database.ref("qrLinks/" + id).set({
         url: enlace,
         visits: []
       });
 
-      // Mostrar el QR
-      QRCode.toCanvas(document.getElementById('qrcode'), urlQR, { width: 200 }, (err) => {
-        if (err) console.error(err);
-        else document.getElementById("idGenerado").innerText = `ID generado: ${id}`;
+      // ✅ Mostrar el QR
+      QRCode.toCanvas(document.getElementById("qrcode"), redireccionURL, { width: 200 }, err => {
+        if (err) return console.error(err);
+        document.getElementById("idGenerado").innerText = `ID generado: ${id}`;
       });
-    }
+    });
   </script>
 </body>
 </html>
