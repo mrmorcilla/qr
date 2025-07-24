@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QR Dinámico</title>
+</head>
+<body>
+  <h1>Redireccionando...</h1>
+  <script type="module">
+    import { db, ref, push } from './firebase.js';
+
+    // 🔍 ID del QR en la URL
+    const params = new URLSearchParams(window.location.search);
+    const qrId = params.get('id'); // ej: ?id=abc123
+    if (!qrId) {
+      document.body.innerHTML = "<h2>ID de QR no válido</h2>";
+      throw new Error("ID de QR no encontrado");
+    }
+
+    // 🕒 timestamp y navegador
+    const visitData = {
+      timestamp: Date.now(),
+      userAgent: navigator.userAgent,
+    };
+
+    // 🌍 Obtener IP pública
+    fetch("https://api.ipify.org/?format=json")
+      .then(res => res.json())
+      .then(data => {
+        visitData.ip = data.ip;
+
+        // 💾 Guardar visita
+        const visitRef = ref(db, `qrLinks/${qrId}/visits`);
+        push(visitRef, visitData);
+
+        // 🔄 Obtener destino
+        fetch(`https://qrdinamicobbdd-default-rtdb.firebaseio.com/qrLinks/${qrId}/url.json`)
+          .then(res => res.json())
+          .then(url => {
+            if (url) window.location.href = url;
+            else document.body.innerHTML = "<h2>Destino no encontrado</h2>";
+          });
+      });
+  </script>
+</body>
+</html>
