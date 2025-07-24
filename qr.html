@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>QR Dinámico</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+
+  <!-- Firebase v8 (funciona con firebase.* en HTML) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
   <h1>Generar QR Dinámico</h1>
@@ -18,7 +20,7 @@
   <ul id="visitas"></ul>
 
   <script>
-    // Inicializar Firebase
+    // Configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDrUPX8LcO-sH-8pvG7qnhACbbAuZo-MF8",
       authDomain: "qrdinamicobbdd.firebaseapp.com",
@@ -28,21 +30,27 @@
       appId: "1:1032568749438:web:2a894c25e252bad128872f",
       databaseURL: "https://qrdinamicobbdd-default-rtdb.firebaseio.com/"
     };
-    const app = firebase.initializeApp(firebaseConfig);
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     async function obtenerDatosVisita() {
-      const res = await fetch("https://ipapi.co/json/");
-      const data = await res.json();
-      return {
-        ip: data.ip,
-        ciudad: data.city,
-        region: data.region,
-        pais: data.country_name,
-        zona_horaria: data.timezone,
-        org: data.org,
-        fecha: new Date().toLocaleString()
-      };
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        return {
+          ip: data.ip,
+          ciudad: data.city,
+          region: data.region,
+          pais: data.country_name,
+          zona_horaria: data.timezone,
+          org: data.org,
+          fecha: new Date().toLocaleString()
+        };
+      } catch (e) {
+        return { error: "No se pudo obtener IP", fecha: new Date().toLocaleString() };
+      }
     }
 
     async function generarQR() {
@@ -55,25 +63,22 @@
         creado: new Date().toISOString()
       };
 
-      // Guardar info del QR en la base de datos
-      await firebase.database().ref("qrs/" + qrID).set(qrData);
+      await db.ref("qrs/" + qrID).set(qrData);
 
-      // Mostrar el QR generado
       document.getElementById("qrcode").innerHTML = "";
       QRCode.toCanvas(texto, { width: 256 }, function (err, canvas) {
         if (err) console.error(err);
         else document.getElementById("qrcode").appendChild(canvas);
       });
 
-      // Simular que alguien escanea el QR
       const datosVisita = await obtenerDatosVisita();
-      await firebase.database().ref(`qrs/${qrID}/visitas`).push(datosVisita);
+      await db.ref(`qrs/${qrID}/visitas`).push(datosVisita);
 
       mostrarVisitas(qrID);
     }
 
-    async function mostrarVisitas(qrID) {
-      const visitasRef = firebase.database().ref(`qrs/${qrID}/visitas`);
+    function mostrarVisitas(qrID) {
+      const visitasRef = db.ref(`qrs/${qrID}/visitas`);
       visitasRef.on("value", (snapshot) => {
         const data = snapshot.val();
         const lista = document.getElementById("visitas");
